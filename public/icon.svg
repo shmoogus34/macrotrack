@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181b" />
+      <stop offset="100%" stop-color="#000000" />
+    </linearGradient>
+    <linearGradient id="flame" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FF453A" />
+      <stop offset="50%" stop-color="#FF9F0A" />
+      <stop offset="100%" stop-color="#30D158" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="16" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="115" fill="url(#bg)" stroke="#27272a" stroke-width="8"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="#27272a" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="url(#flame)" stroke-width="24" stroke-linecap="round" stroke-dasharray="1005" stroke-dashoffset="250" transform="rotate(-90 256 256)"/>
+  <!-- Modern Minimalist Flame Icon -->
+  <path d="M256 140 C280 200 320 220 320 270 C320 310 290 340 256 340 C222 340 192 310 192 270 C192 230 230 190 256 140 Z" fill="url(#flame)" filter="url(#glow)"/>
+</svg>
