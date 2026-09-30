@@ -2,10 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useMacroTracker } from '@/context/MacroTrackerContext';
-import { Wifi, Battery } from 'lucide-react';
 
 export const IPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { totals, targets } = useMacroTracker();
+  const { totals, targets, activeTab } = useMacroTracker();
   const [currentTime, setCurrentTime] = useState('9:41');
 
   useEffect(() => {
@@ -27,8 +26,8 @@ export const IPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children 
     <div className="min-h-screen bg-black flex flex-col items-center justify-center text-white selection:bg-white selection:text-black">
       {/* Frame Container */}
       <div className="w-full max-w-md min-h-screen sm:min-h-[880px] sm:max-h-[95vh] sm:rounded-[48px] sm:border sm:border-zinc-800 sm:shadow-2xl bg-black overflow-hidden flex flex-col relative">
-        {/* iOS Top Status Bar */}
-        <header className="sticky top-0 z-40 w-full pt-safe px-7 pt-3 pb-2 flex items-center justify-between bg-black/90 backdrop-blur-xl border-b border-zinc-900/60">
+        {/* iOS Top Status Bar: Clean, with no icons on top right */}
+        <header className="sticky top-0 z-40 w-full pt-safe px-6 pt-3 pb-2 flex items-center justify-between bg-black/90 backdrop-blur-xl border-b border-zinc-900/60">
           <span className="text-xs font-mono font-bold tracking-tight text-white w-14">
             {currentTime}
           </span>
@@ -40,14 +39,12 @@ export const IPhoneFrame: React.FC<{ children: React.ReactNode }> = ({ children 
             </span>
           </div>
 
-          <div className="flex items-center justify-end gap-1.5 text-zinc-300 w-14">
-            <Wifi className="w-3.5 h-3.5 text-white" />
-            <Battery className="w-4 h-4 text-white" />
-          </div>
+          {/* Top Right: Completely clean and empty */}
+          <div className="w-14" />
         </header>
 
-        {/* App Main Body */}
-        <div className="flex-1 overflow-y-auto no-scrollbar pb-24 relative flex flex-col">
+        {/* App Main Body: fills screen, camera tab manages its own viewport without scroll */}
+        <div className={`flex-1 ${activeTab === 'camera' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto no-scrollbar pb-24'} relative flex flex-col`}>
           {children}
         </div>
 

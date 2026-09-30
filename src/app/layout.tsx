@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { MacroTrackerProvider } from '@/context/MacroTrackerContext';
 
@@ -51,6 +52,10 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="min-h-full h-full flex flex-col bg-black text-white overscroll-none select-none">
+        <Script
+          src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
+          strategy="lazyOnload"
+        />
         <MacroTrackerProvider>
           {children}
         </MacroTrackerProvider>
