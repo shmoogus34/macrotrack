@@ -81,10 +81,28 @@ function parseJSON(raw: string): any {
 }
 
 /**
- * Client-side Puter.js AI Text Food Analysis
+ * Text Food Analysis: Prioritizes Google Gemini 3.5 API (via server route)
+ * with client-side Puter.js and USDA engine fallbacks.
  */
 export async function analyzeFoodTextWithPuter(prompt: string): Promise<AIAnalysisResult> {
-  // Check if Puter.js is loaded in browser
+  // 1. Primary: Direct Google Gemini 3.5 API via server route
+  try {
+    const res = await fetch('/api/analyze-food', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.items && data.items.length > 0) {
+        return validateAndCorrectMacros(data, prompt);
+      }
+    }
+  } catch (err) {
+    console.warn('Primary Gemini server route failed, falling back to Puter/Engine:', err);
+  }
+
+  // 2. Secondary: Client Puter.js AI
   if (typeof window !== 'undefined' && (window as any).puter?.ai?.chat) {
     try {
       const response = await (window as any).puter.ai.chat(
@@ -101,34 +119,37 @@ export async function analyzeFoodTextWithPuter(prompt: string): Promise<AIAnalys
         return validateAndCorrectMacros(parsed, prompt);
       }
     } catch (err) {
-      console.warn('Puter.js client chat error, falling back to server route:', err);
+      console.warn('Puter.js client chat error:', err);
     }
   }
 
-  // Fallback to server API route
-  try {
-    const res = await fetch('/api/analyze-food', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return validateAndCorrectMacros(data, prompt);
-    }
-  } catch (err) {
-    console.warn('Server fallback failed:', err);
-  }
-
-  // Direct USDA engine calculation
+  // 3. Fallback: USDA precision nutrition engine
   return parseFoodWithNutritionEngine(prompt);
 }
 
 /**
- * Client-side Puter.js AI Multimodal Vision Analysis
+ * Multimodal Vision Analysis: Prioritizes Google Gemini 3.5 Vision API (via server route)
+ * with client-side Puter.js fallback.
  */
 export async function analyzeFoodImageWithPuter(imageBase64: string): Promise<AIAnalysisResult> {
-  // Check if Puter.js is loaded in browser
+  // 1. Primary: Direct Google Gemini 3.5 Vision API via server route
+  try {
+    const res = await fetch('/api/analyze-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageBase64 }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.items && data.items.length > 0) {
+        return validateAndCorrectMacros(data, 'Scanned Meal');
+      }
+    }
+  } catch (err) {
+    console.warn('Primary Gemini server vision failed, falling back to Puter/Engine:', err);
+  }
+
+  // 2. Secondary: Client Puter.js AI
   if (typeof window !== 'undefined' && (window as any).puter?.ai?.chat) {
     try {
       const response = await (window as any).puter.ai.chat(
@@ -146,23 +167,8 @@ export async function analyzeFoodImageWithPuter(imageBase64: string): Promise<AI
         return validateAndCorrectMacros(parsed, 'Scanned Meal');
       }
     } catch (err) {
-      console.warn('Puter.js client image vision error, falling back to server route:', err);
+      console.warn('Puter.js client vision error:', err);
     }
-  }
-
-  // Fallback to server API route
-  try {
-    const res = await fetch('/api/analyze-image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ image: imageBase64 }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      return validateAndCorrectMacros(data, 'Scanned Meal');
-    }
-  } catch (err) {
-    console.warn('Server vision fallback failed:', err);
   }
 
   return {

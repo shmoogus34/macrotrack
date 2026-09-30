@@ -1,5 +1,6 @@
 import { AIAnalysisResult } from './types';
 import { parseFoodWithNutritionEngine, validateAndCorrectMacros } from './nutrition-engine';
+import { directGeminiTextAnalysis, directGeminiImageAnalysis } from './gemini-direct';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const DEFAULT_MODEL = 'google/gemini-2.5-flash';
@@ -61,12 +62,23 @@ Return strictly raw valid JSON schema:
 `.trim();
 
 /**
- * Text food analysis using Puter.js / OpenRouter with USDA engine fallback.
+ * Text food analysis using Google Gemini 3.5 API with fallback to OpenRouter / USDA engine.
  */
 export async function analyzeFoodText(
   prompt: string,
-  options?: { apiKey?: string; model?: string }
+  options?: { apiKey?: string; model?: string; geminiApiKey?: string }
 ): Promise<AIAnalysisResult> {
+  // 1. Primary: Direct Google Gemini 3.5 API
+  try {
+    const geminiResult = await directGeminiTextAnalysis(prompt, options?.geminiApiKey);
+    if (geminiResult && geminiResult.items && geminiResult.items.length > 0) {
+      return geminiResult;
+    }
+  } catch (err) {
+    console.warn('Direct Gemini text analysis failed, attempting fallback:', err);
+  }
+
+  // 2. Fallback: OpenRouter
   const apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY || '';
   const model = options?.model || DEFAULT_MODEL;
 
@@ -118,12 +130,27 @@ export async function analyzeFoodText(
 }
 
 /**
- * Multimodal image analysis using Puter.js / OpenRouter with visual description.
+ * Multimodal image analysis using Google Gemini 3.5 Vision API with fallback to OpenRouter / verified nutrition engine.
  */
 export async function analyzeFoodImage(
   imageBase64: string,
-  options?: { apiKey?: string; model?: string; userContext?: string }
+  options?: { apiKey?: string; model?: string; userContext?: string; geminiApiKey?: string }
 ): Promise<AIAnalysisResult> {
+  // 1. Primary: Direct Google Gemini 3.5 Multimodal Vision API with user's Gemini key
+  try {
+    const geminiVisionResult = await directGeminiImageAnalysis(
+      imageBase64,
+      options?.geminiApiKey,
+      options?.userContext
+    );
+    if (geminiVisionResult && geminiVisionResult.items && geminiVisionResult.items.length > 0) {
+      return geminiVisionResult;
+    }
+  } catch (err) {
+    console.warn('Direct Gemini vision analysis failed, attempting fallback:', err);
+  }
+
+  // 2. Fallback: OpenRouter
   const apiKey = options?.apiKey || process.env.OPENROUTER_API_KEY || '';
   const model = options?.model || DEFAULT_MODEL;
 
