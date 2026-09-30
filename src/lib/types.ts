@@ -22,6 +22,7 @@ export interface MealEntry {
   carbs: number;
   fat: number;
   imageUrl?: string;
+  visualDescription?: string;
   aiAnalyzed?: boolean;
   aiConfidence?: number;
   healthTip?: string;
@@ -76,6 +77,7 @@ export interface DayLog {
 }
 
 export interface AIAnalysisResult {
+  visualDescription?: string;
   mealName: string;
   suggestedCategory: MealCategory;
   items: Array<{

@@ -6,6 +6,8 @@ import { AIAnalysisResult, MealCategory } from '@/lib/types';
 import { Mic, MicOff, ArrowRight, Loader2, X, Check } from 'lucide-react';
 import { triggerHaptic } from '@/lib/haptics';
 
+import { analyzeFoodTextWithPuter } from '@/lib/puter-client';
+
 export const AILoggerBar: React.FC = () => {
   const { addMeal, profile } = useMacroTracker();
   const [prompt, setPrompt] = useState('');
@@ -61,44 +63,12 @@ export const AILoggerBar: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/analyze-food', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: textToAnalyze.trim(),
-          apiKey: profile.customApiKey,
-          model: profile.preferredModel,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Analysis failed');
-
-      const data: AIAnalysisResult = await res.json();
+      const data = await analyzeFoodTextWithPuter(textToAnalyze.trim());
       setAnalysisResult(data);
       setSelectedCategory(data.suggestedCategory || 'lunch');
       triggerHaptic('success');
-    } catch {
-      const fallback: AIAnalysisResult = {
-        mealName: textToAnalyze.slice(0, 30),
-        suggestedCategory: 'lunch',
-        items: [
-          {
-            name: textToAnalyze,
-            portion: '1 serving',
-            calories: 420,
-            protein: 32,
-            carbs: 45,
-            fat: 12,
-          },
-        ],
-        totalCalories: 420,
-        totalProtein: 32,
-        totalCarbs: 45,
-        totalFat: 12,
-        confidence: 0.85,
-        healthTip: 'Macro calculated from nutritional database.',
-      };
-      setAnalysisResult(fallback);
+    } catch (err) {
+      console.warn('Analysis error:', err);
     } finally {
       setIsLoading(false);
     }

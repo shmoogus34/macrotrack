@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: 'MacroTrack AI — Intelligent Macro & Calorie Companion',
-  description: 'AI-powered macro tracker designed specifically for iPhone and web app installation. Track meals with camera vision and natural language.',
+  description: 'AI-powered macro tracker designed specifically for iPhone and web app installation. Powered by Puter.js.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -52,6 +52,8 @@ export default function RootLayout({
         <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="min-h-full h-full flex flex-col bg-black text-white overscroll-none select-none">
+        {/* Puter.js AI script */}
+        <Script src="https://js.puter.com/v2/" strategy="beforeInteractive" />
         <Script
           src="https://appleid.cdn-apple.com/appleauth/static/jsapi/appleid/1/en_US/appleid.auth.js"
           strategy="lazyOnload"

@@ -5,6 +5,7 @@ import { useMacroTracker } from '@/context/MacroTrackerContext';
 import { AIAnalysisResult, MealCategory } from '@/lib/types';
 import { Check, X, Loader2, Camera } from 'lucide-react';
 import { triggerHaptic } from '@/lib/haptics';
+import { analyzeFoodImageWithPuter } from '@/lib/puter-client';
 
 export const CameraTab: React.FC = () => {
   const { addMeal, setActiveTab, profile } = useMacroTracker();
@@ -146,44 +147,12 @@ export const CameraTab: React.FC = () => {
     setScanResult(null);
 
     try {
-      const res = await fetch('/api/analyze-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          image: imageDataUrl,
-          apiKey: profile.customApiKey,
-          model: profile.preferredModel,
-        }),
-      });
-
-      if (!res.ok) throw new Error('Analysis failed');
-
-      const result: AIAnalysisResult = await res.json();
+      const result = await analyzeFoodImageWithPuter(imageDataUrl);
       setScanResult(result);
       setSelectedCategory(result.suggestedCategory || 'lunch');
       triggerHaptic('success');
-    } catch {
-      const fallback: AIAnalysisResult = {
-        mealName: 'Scanned Meal',
-        suggestedCategory: 'lunch',
-        items: [
-          {
-            name: 'Detected Balanced Meal Plate',
-            portion: '1 serving',
-            calories: 520,
-            protein: 42,
-            carbs: 48,
-            fat: 16,
-          },
-        ],
-        totalCalories: 520,
-        totalProtein: 42,
-        totalCarbs: 48,
-        totalFat: 16,
-        confidence: 0.88,
-        healthTip: 'High protein nutrition profile detected.',
-      };
-      setScanResult(fallback);
+    } catch (err) {
+      console.warn('Vision analysis failed:', err);
     } finally {
       setIsScanning(false);
     }
@@ -210,6 +179,7 @@ export const CameraTab: React.FC = () => {
       carbs: scanResult.totalCarbs,
       fat: scanResult.totalFat,
       imageUrl: capturedImage || undefined,
+      visualDescription: scanResult.visualDescription,
       aiAnalyzed: true,
       aiConfidence: scanResult.confidence,
       healthTip: scanResult.healthTip,
@@ -297,6 +267,18 @@ export const CameraTab: React.FC = () => {
                       <option value="snack">Snack</option>
                     </select>
                   </div>
+
+                  {/* Visual Observation: What AI Sees */}
+                  {scanResult.visualDescription && (
+                    <div className="bg-black border border-zinc-800 rounded-2xl p-3.5 my-3 text-left">
+                      <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-500 block mb-1 font-bold">
+                        WHAT AI SEES IN PHOTO
+                      </span>
+                      <p className="text-xs font-mono text-zinc-300 leading-relaxed">
+                        {scanResult.visualDescription}
+                      </p>
+                    </div>
+                  )}
 
                   {/* Macro Numbers */}
                   <div className="grid grid-cols-4 gap-2 my-4">

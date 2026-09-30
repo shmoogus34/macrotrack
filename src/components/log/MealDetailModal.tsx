@@ -69,6 +69,18 @@ export const MealDetailModal: React.FC = () => {
           </div>
         )}
 
+        {/* What AI Saw in Photo */}
+        {meal.visualDescription && (
+          <div className="my-3 p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 text-left">
+            <span className="text-[9px] font-mono uppercase tracking-widest text-zinc-500 block mb-1 font-bold">
+              WHAT AI SAW IN PHOTO
+            </span>
+            <p className="text-xs font-mono text-zinc-300 leading-relaxed">
+              {meal.visualDescription}
+            </p>
+          </div>
+        )}
+
         {/* Huge Bold Macro Breakdown Grid */}
         <div className="grid grid-cols-4 gap-2 my-5">
           <div className="bg-zinc-950 border border-white/10 rounded-2xl p-3 text-center">
