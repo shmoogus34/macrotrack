@@ -1,21 +1,22 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
-import { DayLog, MealEntry, UserGoals, UserProfile, WeightLogEntry } from '@/lib/types';
+import { DayLog, MealEntry, UserAccount, UserGoals, UserProfile, WeightLogEntry } from '@/lib/types';
 import {
   DEFAULT_GOALS,
   DEFAULT_PROFILE,
+  getActiveUser,
   getDayLog,
-  getStoredGoals,
-  getStoredProfile,
+  getStoredUsers,
   getStoredWeightLogs,
   getTodayString,
   saveDayLog,
-  saveStoredGoals,
-  saveStoredProfile,
   saveWeightLog,
+  setActiveUserId,
+  createNewAccount,
+  updateStoredUser,
 } from '@/lib/storage';
-import { celebrateGoal, triggerHaptic } from '@/lib/haptics';
+import { triggerHaptic, celebrateGoal } from '@/lib/haptics';
 
 export type TabType = 'log' | 'camera' | 'profile';
 
@@ -28,8 +29,23 @@ interface MacroTrackerContextType {
   profile: UserProfile;
   goals: UserGoals;
   weightLogs: WeightLogEntry[];
-  isDesktopFrame: boolean;
-  setIsDesktopFrame: (val: boolean) => void;
+  currentUser: UserAccount | null;
+  allUsers: UserAccount[];
+
+  // Meal inspection detail modal
+  selectedMealDetails: MealEntry | null;
+  setSelectedMealDetails: (meal: MealEntry | null) => void;
+
+  // Auth & Onboarding
+  signupWithProvider: (
+    provider: 'apple' | 'google' | 'email',
+    email: string,
+    name: string,
+    customGoals?: Partial<UserGoals>,
+    customProfile?: Partial<UserProfile>
+  ) => void;
+  loginUser: (userId: string) => void;
+  logout: () => void;
 
   // Actions
   addMeal: (meal: Omit<MealEntry, 'id' | 'timestamp'> & { timestamp?: string }) => void;
@@ -39,7 +55,6 @@ interface MacroTrackerContextType {
   updateProfile: (profile: Partial<UserProfile>) => void;
   updateGoals: (goals: Partial<UserGoals>) => void;
   logWeight: (weight: number, dateStr?: string) => void;
-  resetAll: () => void;
 
   // Computed summary
   totals: {
@@ -68,49 +83,88 @@ interface MacroTrackerContextType {
 const MacroTrackerContext = createContext<MacroTrackerContextType | undefined>(undefined);
 
 export function MacroTrackerProvider({ children }: { children: React.ReactNode }) {
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
+  const [allUsers, setAllUsers] = useState<UserAccount[]>([]);
   const [activeTab, setActiveTabState] = useState<TabType>('log');
   const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
   const [dayLog, setDayLog] = useState<DayLog>({ date: getTodayString(), waterIntakeMl: 0, meals: [] });
-  const [profile, setProfileState] = useState<UserProfile>(DEFAULT_PROFILE);
-  const [goals, setGoalsState] = useState<UserGoals>(DEFAULT_GOALS);
   const [weightLogs, setWeightLogsState] = useState<WeightLogEntry[]>([]);
-  const [isDesktopFrame, setIsDesktopFrame] = useState<boolean>(true);
+  const [selectedMealDetails, setSelectedMealDetails] = useState<MealEntry | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Initialize from client storage
+  // Initialize active user
   useEffect(() => {
     setIsMounted(true);
-    const p = getStoredProfile();
-    const g = getStoredGoals();
-    const w = getStoredWeightLogs();
-    const d = getDayLog(getTodayString());
+    const users = getStoredUsers();
+    setAllUsers(users);
 
-    setProfileState(p);
-    setGoalsState(g);
-    setWeightLogsState(w);
-    setDayLog(d);
-
-    // Auto-detect mobile devices to default to true full-screen
-    if (typeof window !== 'undefined' && window.innerWidth <= 768) {
-      setIsDesktopFrame(false);
+    const active = getActiveUser();
+    if (active) {
+      setCurrentUser(active);
+      const d = getDayLog(getTodayString(), active.id);
+      setDayLog(d);
+      setWeightLogsState(getStoredWeightLogs(active.id));
     }
   }, []);
 
-  // Update dayLog when selectedDate changes
+  // Update dayLog when selectedDate or currentUser changes
   useEffect(() => {
-    if (!isMounted) return;
-    const log = getDayLog(selectedDate);
+    if (!isMounted || !currentUser) return;
+    const log = getDayLog(selectedDate, currentUser.id);
     setDayLog(log);
-  }, [selectedDate, isMounted]);
+  }, [selectedDate, currentUser, isMounted]);
+
+  const profile = currentUser?.profile || DEFAULT_PROFILE;
+  const goals = currentUser?.goals || DEFAULT_GOALS;
 
   const setActiveTab = (tab: TabType) => {
     triggerHaptic('light');
     setActiveTabState(tab);
   };
 
+  const signupWithProvider = (
+    provider: 'apple' | 'google' | 'email',
+    email: string,
+    name: string,
+    customGoals?: Partial<UserGoals>,
+    customProfile?: Partial<UserProfile>
+  ) => {
+    triggerHaptic('success');
+    celebrateGoal();
+    const account = createNewAccount(provider, email, name, customGoals, customProfile);
+    setCurrentUser(account);
+    setAllUsers(getStoredUsers());
+
+    // Completely clean slate: zero meals
+    const freshLog = { date: getTodayString(), waterIntakeMl: 0, meals: [] };
+    setDayLog(freshLog);
+    setWeightLogsState([]);
+  };
+
+  const loginUser = (userId: string) => {
+    triggerHaptic('light');
+    setActiveUserId(userId);
+    const users = getStoredUsers();
+    const found = users.find((u) => u.id === userId) || null;
+    setCurrentUser(found);
+    if (found) {
+      setDayLog(getDayLog(selectedDate, found.id));
+      setWeightLogsState(getStoredWeightLogs(found.id));
+    }
+  };
+
+  const logout = () => {
+    triggerHaptic('light');
+    setActiveUserId(null);
+    setCurrentUser(null);
+    setDayLog({ date: getTodayString(), waterIntakeMl: 0, meals: [] });
+    setWeightLogsState([]);
+  };
+
   const addMeal = (newMealData: Omit<MealEntry, 'id' | 'timestamp'> & { timestamp?: string }) => {
+    if (!currentUser) return;
     const meal: MealEntry = {
-      id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: `m_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       timestamp: newMealData.timestamp || new Date().toISOString(),
       ...newMealData,
     };
@@ -121,10 +175,9 @@ export function MacroTrackerProvider({ children }: { children: React.ReactNode }
     };
 
     setDayLog(updated);
-    saveDayLog(updated);
+    saveDayLog(updated, currentUser.id);
     triggerHaptic('medium');
 
-    // Check if protein or calorie goal hit
     const newProtein = updated.meals.reduce((sum, m) => sum + m.protein, 0);
     if (newProtein >= goals.dailyProtein && dayLog.meals.reduce((sum, m) => sum + m.protein, 0) < goals.dailyProtein) {
       celebrateGoal();
@@ -132,26 +185,35 @@ export function MacroTrackerProvider({ children }: { children: React.ReactNode }
   };
 
   const deleteMeal = (mealId: string) => {
+    if (!currentUser) return;
     triggerHaptic('medium');
     const updated: DayLog = {
       ...dayLog,
       meals: dayLog.meals.filter((m) => m.id !== mealId),
     };
     setDayLog(updated);
-    saveDayLog(updated);
+    saveDayLog(updated, currentUser.id);
+    if (selectedMealDetails?.id === mealId) {
+      setSelectedMealDetails(null);
+    }
   };
 
   const updateMeal = (meal: MealEntry) => {
+    if (!currentUser) return;
     triggerHaptic('light');
     const updated: DayLog = {
       ...dayLog,
       meals: dayLog.meals.map((m) => (m.id === meal.id ? meal : m)),
     };
     setDayLog(updated);
-    saveDayLog(updated);
+    saveDayLog(updated, currentUser.id);
+    if (selectedMealDetails?.id === meal.id) {
+      setSelectedMealDetails(meal);
+    }
   };
 
   const addWater = (amountMl: number) => {
+    if (!currentUser) return;
     triggerHaptic('light');
     const current = dayLog.waterIntakeMl || 0;
     const updatedWater = Math.max(0, current + amountMl);
@@ -160,40 +222,35 @@ export function MacroTrackerProvider({ children }: { children: React.ReactNode }
       waterIntakeMl: updatedWater,
     };
     setDayLog(updated);
-    saveDayLog(updated);
-
-    if (updatedWater >= goals.dailyWaterMl && current < goals.dailyWaterMl) {
-      celebrateGoal();
-    }
+    saveDayLog(updated, currentUser.id);
   };
 
   const updateProfile = (partial: Partial<UserProfile>) => {
-    const updated = { ...profile, ...partial };
-    setProfileState(updated);
-    saveStoredProfile(updated);
+    if (!currentUser) return;
+    const updatedUser: UserAccount = {
+      ...currentUser,
+      profile: { ...currentUser.profile, ...partial },
+    };
+    setCurrentUser(updatedUser);
+    updateStoredUser(updatedUser);
   };
 
   const updateGoals = (partial: Partial<UserGoals>) => {
-    const updated = { ...goals, ...partial };
-    setGoalsState(updated);
-    saveStoredGoals(updated);
+    if (!currentUser) return;
+    const updatedUser: UserAccount = {
+      ...currentUser,
+      goals: { ...currentUser.goals, ...partial },
+    };
+    setCurrentUser(updatedUser);
+    updateStoredUser(updatedUser);
   };
 
   const logWeight = (weight: number, dateStr?: string) => {
+    if (!currentUser) return;
     triggerHaptic('medium');
-    const updatedLogs = saveWeightLog(weight, dateStr || selectedDate);
+    const updatedLogs = saveWeightLog(weight, dateStr || selectedDate, currentUser.id);
     setWeightLogsState([...updatedLogs]);
     updateProfile({ currentWeightLbs: weight });
-  };
-
-  const resetAll = () => {
-    localStorage.clear();
-    setProfileState(DEFAULT_PROFILE);
-    setGoalsState(DEFAULT_GOALS);
-    setWeightLogsState([]);
-    const freshToday = { date: getTodayString(), waterIntakeMl: 0, meals: [] };
-    setDayLog(freshToday);
-    saveDayLog(freshToday);
   };
 
   // Compute daily totals
@@ -239,8 +296,13 @@ export function MacroTrackerProvider({ children }: { children: React.ReactNode }
         profile,
         goals,
         weightLogs,
-        isDesktopFrame,
-        setIsDesktopFrame,
+        currentUser,
+        allUsers,
+        selectedMealDetails,
+        setSelectedMealDetails,
+        signupWithProvider,
+        loginUser,
+        logout,
         addMeal,
         deleteMeal,
         updateMeal,
@@ -248,7 +310,6 @@ export function MacroTrackerProvider({ children }: { children: React.ReactNode }
         updateProfile,
         updateGoals,
         logWeight,
-        resetAll,
         totals,
         targets,
         percentages,

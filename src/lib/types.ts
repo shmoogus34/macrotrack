@@ -51,6 +51,16 @@ export interface UserProfile {
   preferredModel: string;
 }
 
+export interface UserAccount {
+  id: string;
+  email: string;
+  name: string;
+  provider: 'apple' | 'google' | 'email';
+  createdAt: string;
+  profile: UserProfile;
+  goals: UserGoals;
+}
+
 export interface WeightLogEntry {
   id: string;
   date: string; // YYYY-MM-DD

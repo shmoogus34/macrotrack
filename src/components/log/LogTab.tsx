@@ -4,14 +4,14 @@ import React from 'react';
 import { useMacroTracker } from '@/context/MacroTrackerContext';
 import { MacroRings } from './MacroRings';
 import { AILoggerBar } from './AILoggerBar';
-import { WaterWidget } from './WaterWidget';
 import { MealList } from './MealList';
-import { ChevronLeft, ChevronRight, Calendar, Flame, Sparkles } from 'lucide-react';
+import { MealDetailModal } from './MealDetailModal';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getTodayString } from '@/lib/storage';
 import { triggerHaptic } from '@/lib/haptics';
 
 export const LogTab: React.FC = () => {
-  const { selectedDate, setSelectedDate, totals, targets } = useMacroTracker();
+  const { selectedDate, setSelectedDate, currentUser } = useMacroTracker();
 
   const todayStr = getTodayString();
   const isToday = selectedDate === todayStr;
@@ -39,72 +39,56 @@ export const LogTab: React.FC = () => {
   })();
 
   return (
-    <div className="px-5 py-4 space-y-5 animate-in fade-in duration-300">
-      {/* Top Header: Streak and Day Switcher */}
+    <div className="px-5 py-4 space-y-5 animate-in fade-in duration-200">
+      {/* Day Navigator */}
       <div className="flex items-center justify-between">
-        {/* Streak badge */}
-        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-semibold">
-          <Flame className="w-3.5 h-3.5 fill-orange-400" />
-          <span>5 Day Streak</span>
+        <div>
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-zinc-500 block">
+            {currentUser?.name ? `${currentUser.name.toUpperCase()}'S LOG` : 'DAILY LOG'}
+          </span>
+          <h2 className="text-xl font-black text-white uppercase tracking-tight">
+            {isToday ? 'Today' : formattedDate}
+          </h2>
         </div>
 
-        {/* Day navigator */}
-        <div className="flex items-center gap-1 bg-zinc-900/90 border border-white/10 rounded-full px-1.5 py-1 shadow-inner">
+        <div className="flex items-center gap-1 bg-zinc-950 border border-zinc-800 rounded-full px-2 py-1">
           <button
             onClick={() => navigateDay(-1)}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+            className="p-1 text-zinc-500 hover:text-white transition-colors"
             title="Previous Day"
           >
-            <ChevronLeft className="w-3.5 h-3.5" />
+            <ChevronLeft className="w-4 h-4" />
           </button>
-
           <button
             onClick={() => {
               triggerHaptic('light');
               setSelectedDate(todayStr);
             }}
-            className="px-2.5 py-0.5 text-xs font-semibold tracking-tight text-white hover:text-amber-400 transition-colors flex items-center gap-1"
+            className="px-2 text-xs font-mono font-bold uppercase text-zinc-400 hover:text-white"
           >
-            <span>{isToday ? 'Today' : formattedDate}</span>
+            {isToday ? 'TODAY' : 'RESET'}
           </button>
-
           <button
             onClick={() => navigateDay(1)}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all"
+            className="p-1 text-zinc-500 hover:text-white transition-colors"
             title="Next Day"
           >
-            <ChevronRight className="w-3.5 h-3.5" />
+            <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* Hero Macro Concentric Rings & Highlights */}
+      {/* Hero Macro Budget */}
       <MacroRings />
 
-      {/* AI Prompt Input Bar */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5 px-1">
-          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>AI Fast Food Log</span>
-          </span>
-          <span className="text-[10px] text-zinc-400">Natural Language or Voice</span>
-        </div>
-        <AILoggerBar />
-      </div>
+      {/* AI Fast Food Logger */}
+      <AILoggerBar />
 
-      {/* Hydration tracker */}
-      <WaterWidget />
+      {/* Meals List */}
+      <MealList />
 
-      {/* Daily Meals Timeline */}
-      <div>
-        <div className="flex items-center justify-between mb-2.5 px-1">
-          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider">
-            Meals Timeline ({formattedDate})
-          </span>
-        </div>
-        <MealList />
-      </div>
+      {/* Detailed Inspection Modal */}
+      <MealDetailModal />
     </div>
   );
 };
